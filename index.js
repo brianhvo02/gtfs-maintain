@@ -1,7 +1,7 @@
+const GtfsRealtimeBindings = require('gtfs-realtime-bindings');
 const { MongoClient } = require("mongodb");
-const { mkdir, writeFile, readFile, readdir } = require('fs/promises');
+const { mkdir, writeFile, readFile } = require('fs/promises');
 const { existsSync } = require('fs');
-const { pipeline } = require("stream/promises");
 const AdmZip = require('adm-zip');
 const { join } = require("path");
 const { createHash } = require("crypto");
@@ -24,7 +24,7 @@ const readCsv = str => {
     return data.map(datum => zipObject(header, datum));
 }
 
-const run = async () => {
+const runSchedule = async () => {
     try {
         const database = client.db(OPERATOR_ID);
 
@@ -67,18 +67,42 @@ const run = async () => {
             await writeFile(checksumPath, downloadChecksum);
             
             const dataObjects = readCsv(data.toString('utf-8'));
+            await collection.deleteMany({});
 
             console.log('Processing', dataObjects.length, 'lines in', filename);
-            if (dataObjects.length) {
+            if (dataObjects.length)
                 await collection.insertMany(dataObjects);
-            }
             return console.log('Completed processing', filename);
         });
 
-        return await Promise.all(transactions);
+        await Promise.all(transactions);
     } finally {
         await client.close();
     }
 }
 
-run().then('Success.').catch(console.dir);
+const fetchRealtime = async endpoint => fetch(`http://api.511.org/transit/${endpoint}?api_key=${SFB_511_API_KEY}&agency=${OPERATOR_ID}`)
+    .then(res => res.arrayBuffer())
+    .then(data => GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(data)));
+
+const updateRealtime = async endpoint => {
+    const database = client.db(OPERATOR_ID);
+    const { entity } = await fetchRealtime(endpoint);
+    const collection = database.collection(endpoint);
+    await collection.deleteMany({});
+    await collection.insertMany(entity);
+}
+
+const runRealtime = async () => {
+    try {
+        await Promise.all([
+            updateRealtime('vehiclepositions'),
+            updateRealtime('tripupdates')
+        ]);
+    } finally {
+        await client.close();
+    }
+}
+
+// runSchedule().then(() => console.log('Success.')).catch(console.dir);
+runRealtime().then(() => console.log('Success.')).catch(console.dir);
