@@ -1,5 +1,6 @@
-import { Position } from "@turf/helpers";
+import { Feature, MultiLineString, Point, Position } from "@turf/helpers";
 import { createHash } from "crypto";
+import { Route, Stop } from "gtfs-types";
 import { zipObject } from "lodash";
 import { Long } from "protobufjs";
 
@@ -50,3 +51,6 @@ export const timestampToDate = (num: number | Long | null | undefined) => {
 };
 
 export const checkPosition = (pos: Position): pos is [number, number] => pos.length === 2;
+
+export const checkRouteFeature = (feature: Feature<MultiLineString | Point, Route | Stop>): feature is Feature<MultiLineString, Route> => feature.geometry.type === 'MultiLineString';
+export const checkStopFeature = (feature: Feature<MultiLineString | Point, Route | Stop>): feature is Feature<Point, Stop> => feature.geometry.type === 'Point';

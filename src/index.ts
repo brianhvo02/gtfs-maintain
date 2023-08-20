@@ -4,12 +4,12 @@ import { existsSync } from 'fs';
 import AdmZip from 'adm-zip';
 import { join } from 'path';
 import { GTFSData, MAP_BOX_PUB_KEY, OPERATOR_ID, SFB_511_API_KEY, agencyCollection, calendarCollection, calendarDateCollection, client, database, directionCollection, fareAttributeCollection, fareRuleCollection, routeAttributeCollection, routeCollection, routeGeoJSONCollection, shapeCollection, stopCollection, stopTimeCollection, tripCollection, tripUpdateCollection, vehicleCollection } from './config';
-import { checkPosition, filterNull, hash, notEmpty, readCsv, timestampToDate } from './util';
+import { checkPosition, checkRouteFeature, checkStopFeature, filterNull, hash, notEmpty, readCsv, timestampToDate } from './util';
 import polyline from '@mapbox/polyline';
 import { mapValues, omit, pick } from 'lodash';
-import { Occupancy, Route, Trip, VehicleType } from 'gtfs-types';
+import { Occupancy, Route, Stop, Trip, VehicleType } from 'gtfs-types';
 import { WithoutId } from 'mongodb';
-import { multiLineString } from '@turf/helpers';
+import { Feature, MultiLineString, Point, featureCollection, multiLineString, point } from '@turf/helpers';
 
 const runSchedule = async () => {
     const operatorPath = join('./gtfs', OPERATOR_ID);
@@ -55,10 +55,11 @@ const runSchedule = async () => {
 
         console.log('Processing', dataObjects.length, 'lines in', filename);
         if (dataObjects.length) await collection.insertMany(dataObjects);
-        return console.log('Completed processing', filename);
+        console.log('Completed processing', filename);
     });
 
-    return Promise.all(transactions);
+    await Promise.all(transactions);
+    return runRoutesGeoJSON();
 }
 
 const fetchRealtime = async (endpoint: string) => fetch(`http://api.511.org/transit/${endpoint}?api_key=${SFB_511_API_KEY}&agency=${OPERATOR_ID}`)
@@ -78,7 +79,7 @@ const runRealtime = async () => Promise.all([
     updateRealtime('tripupdates')
 ]);
 
-const runGeoJSON = async () => {
+const runRoutesGeoJSON = async () => {
     const routes = await routeCollection.find({}).project<Route>({ 
         _id: 0
     }).toArray();
@@ -86,14 +87,13 @@ const runGeoJSON = async () => {
     console.log('Calculating GeoJSON shapes');
     const routeGeoJSONs = await Promise.all(
         routes.map(async route => {
-            const shapeIds = await tripCollection
+            const trips = await tripCollection
                 .find({ route_id: route.route_id })
-                .project<Pick<Trip, 'shape_id'>>({ _id: 0, shape_id: 1 })
-                .toArray()
-                .then(shapeIds => [...new Set(shapeIds.map(({ shape_id }) => shape_id).filter(notEmpty))]);
+                .project<Pick<Trip, 'shape_id' | 'trip_id'>>({ _id: 0, shape_id: 1, trip_id: 1 })
+                .toArray();
 
             const shapeCoords = await Promise.all(
-                shapeIds.map(async shapeId => 
+                [...new Set(trips.map(({ shape_id }) => shape_id).filter(notEmpty))].map(async shapeId => 
                     shapeCollection
                         .find({ shape_id: shapeId })
                         .sort({ shape_pt_sequence: 1 })
@@ -102,7 +102,31 @@ const runGeoJSON = async () => {
                 )
             );
 
-            return multiLineString(shapeCoords, route);
+            const stopIds = await stopTimeCollection.distinct('stop_id', {
+                trip_id: { 
+                    '$in': trips.map(({ trip_id }) => trip_id).filter(notEmpty) 
+                },
+            });
+
+            const stopFeatures = await Promise.all(
+                stopIds.map(async stopId => 
+                    stopCollection
+                        .findOne<Stop>({ stop_id: stopId }, { projection: { _id: 0 } })
+                )
+            ).then(stops => 
+                stops.reduce((stops: Feature<Point, Stop>[], stop) => (
+                    stop && stop.stop_lon && stop.stop_lat 
+                    ? stops.concat(point([stop.stop_lon, stop.stop_lat], stop)) 
+                    : stops
+                ), [])    
+            );
+
+            return featureCollection<MultiLineString | Point, Route | Stop>([
+                multiLineString(shapeCoords, route),
+                ...stopFeatures
+            ], {
+                id: route.route_id
+            });
         })
     );
 
@@ -207,6 +231,13 @@ const getOccupancyStatus = (occupancyStatus: transit_realtime.VehiclePosition.Oc
     }
 }
 
+const generateMap = async (overlays: string[]) => {
+    const response = await fetch(`https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${encodeURIComponent(overlays.join(','))}/auto/1280x1280@2x?access_token=${MAP_BOX_PUB_KEY}`)
+    const result = await (response.status === 200 ? response.arrayBuffer() : response.text());
+    if (typeof result === 'string') throw new Error(`Map generation failed (${response.status})\n${result}`);
+    await writeFile('map.png', Buffer.from(result));
+}
+
 const generateTripMap = async (data?: GTFSData) => {
     if (!data) return;
     const { stops, shapes, vehicle, route, direction, stopTimes, tripUpdate, agency, calendar, fareAttributes, trip } = data;
@@ -258,48 +289,52 @@ const generateTripMap = async (data?: GTFSData) => {
     console.table(mapValues(omit(calendar, [ '_id', 'service_id', 'start_date', 'end_date' ]), v => !!v));
     console.table(remainingStopInfo);
 
-    const pic = await fetch(`https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${encodeURIComponent(stopStrings.concat(lineString, vehicleString).join(','))}/auto/1280x1280@2x?access_token=${MAP_BOX_PUB_KEY}`)
-        .then(res => res.arrayBuffer());
-    await writeFile('map.png', Buffer.from(pic));
+    return generateMap(stopStrings.concat(lineString, vehicleString))
 }
 
-const generateRoutesMap = async (routeId: string) => {
-    const routeGeoJSON = await routeGeoJSONCollection.findOne({ 'properties.route_id': routeId }, { projection: { _id: 0 } });
+const generateRoutesMap = async (routeId: string, options?: Partial<{
+    withoutStops: boolean
+    withVehicles: boolean
+}>) => {
+    const overlays: string[] = [];
+
+    const routeGeoJSON = await routeGeoJSONCollection.findOne({ 'id': routeId }, { projection: { _id: 0 } });
     if (!routeGeoJSON) return;
 
-    const routeString = routeGeoJSON.geometry.coordinates.map(line => {
+    const [route, ...stops] = routeGeoJSON.features;
+    if (!checkRouteFeature(route)) return;
+    route.geometry.coordinates.forEach(line => {
         const lineString = polyline.encode(line.map(pos => pos.reverse()).filter(checkPosition));
-        return `path+${routeGeoJSON.properties.route_color}(${lineString})`;
-    }).join(',')
+        overlays.push(`path+${route.properties.route_color}(${lineString})`);
+    });
 
-    const pic = await fetch(`https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${encodeURIComponent(routeString)}/auto/1280x1280@2x?access_token=${MAP_BOX_PUB_KEY}`)
-        .then(res => res.arrayBuffer());
-    await writeFile('map.png', Buffer.from(pic));
+    if (!options?.withoutStops) {
+        stops.filter(checkStopFeature).map(stop => {
+            const [ lon, lat ] = stop.geometry.coordinates;
+            overlays.push(`pin-s(${lon},${lat})`);
+        })
+    }
+
+    if (options?.withVehicles) {
+        const vehicles = await vehicleCollection
+            .find({ 'vehicle.trip.routeId': routeId })
+            .toArray();
+        vehicles.forEach(({ vehicle }) => {
+            if (vehicle.position?.longitude && vehicle.position?.latitude)
+                overlays.push(`pin-l-bus+00B5E2(${vehicle.position?.longitude},${vehicle.position?.latitude})`);
+        });
+    }
+
+    return generateMap(overlays);
 }
-
-// const getVehicles = async (routeId?: string) => {
-//     try {
-//         const vehicles = await vehicleCollection.find(routeId ? { 'vehicle.trip.routeId': routeId } : {}).toArray();
-//         return vehicles.map(vehicle => vehicle.vehicle);
-//     } finally {
-//         await client.close();
-//     }
-// }
-
-// const generateVehicleMap = async (vehicles: transit_realtime.VehiclePosition[]) => {
-//     const vehicleStrings = vehicles.map(vehicle => `pin-l-bus+00B5E2(${vehicle.position?.longitude},${vehicle.position?.latitude})`);
-//     const pic = await fetch(`https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${encodeURIComponent(vehicleStrings.join(','))}/auto/1280x1280@2x?access_token=${MAP_BOX_PUB_KEY}`)
-//         .then(res => res.arrayBuffer());
-//     await writeFile('map.png', Buffer.from(pic));
-// }
 
 const success = () => console.log('Success.');
 const run = async () => {
     try {
         // await runSchedule().then(success).catch(console.dir);
         // await runRealtime().then(success).catch(console.dir);
-        // await runGeoJSON().then(success).catch(console.dir);
-        await generateRoutesMap('31').then(success).catch(console.dir);
+        // await runRoutesGeoJSON().then(success).catch(console.dir);
+        // await generateRoutesMap('44', { withVehicles: true }).then(success).catch(console.dir);
         // getTripInfo('3403512').then(generateTripMap).then(success).catch(console.dir);
         // getVehiclesOnRoute('23').then(generateVehicleMap).then(success).catch(console.dir);
     } finally {
