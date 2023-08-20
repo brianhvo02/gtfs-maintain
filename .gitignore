@@ -2,3 +2,4 @@ gtfs
 .env
 node_modules
 dist
+map.png

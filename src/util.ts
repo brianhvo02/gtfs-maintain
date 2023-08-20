@@ -18,7 +18,8 @@ const numbers = [
     'exception_type', 
     'shape_pt_lat', 'shape_pt_lon', 'shape_pt_sequence', 'shape_dist_traveled', 
     'headway_secs', 'exact_times', 
-    'transfer_type', 'min_transfer_time'
+    'transfer_type', 'min_transfer_time',
+    'price', 'payment_method', 'transfers', 'transfer_duration'
 ]
 
 export const readCsv = (str: String) => {

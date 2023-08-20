@@ -18,9 +18,9 @@ export const OPERATOR_ID = 'SC';
 export const client = new MongoClient(MDB_CON_STR_URI);
 export const database = client.db(OPERATOR_ID);
 
-export const tripUpdateCollection = database.collection<{ tripUpdate: transit_realtime.TripUpdate }>('tripupdates');
-export const vehicleCollection = database.collection<{ vehicle: transit_realtime.VehiclePosition }>('vehiclepositions');
-export const tripCollection = database.collection<Trip>('trips', { });
+export const tripUpdateCollection = database.collection<{ id: string, tripUpdate: transit_realtime.TripUpdate }>('tripupdates');
+export const vehicleCollection = database.collection<{ id: string, vehicle: transit_realtime.VehiclePosition }>('vehiclepositions');
+export const tripCollection = database.collection<Trip>('trips');
 export const routeCollection = database.collection<Route>('routes');
 export const routeAttributeCollection = database.collection('route_attributes');
 export const agencyCollection = database.collection<Agency>('agency');

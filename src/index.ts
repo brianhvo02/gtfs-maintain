@@ -6,7 +6,8 @@ import { join } from 'path';
 import { GTFSData, MAP_BOX_PUB_KEY, OPERATOR_ID, SFB_511_API_KEY, agencyCollection, calendarCollection, calendarDateCollection, client, database, directionCollection, fareAttributeCollection, fareRuleCollection, routeAttributeCollection, routeCollection, shapeCollection, stopCollection, stopTimeCollection, tripCollection, tripUpdateCollection, vehicleCollection } from './config';
 import { filterNull, hash, readCsv, timestampToDate } from './util';
 import polyline from '@mapbox/polyline';
-import { pick } from 'lodash';
+import { mapValues, omit, pick } from 'lodash';
+import { Occupancy, VehicleType } from 'gtfs-types';
 
 const runSchedule = async () => {
     try {
@@ -85,12 +86,12 @@ const runRealtime = async () => {
     }
 }
 
-const runQuery = async (tripId: string): Promise<GTFSData | undefined> => {
+const getTripInfo = async (tripId: string): Promise<GTFSData | undefined> => {
     try {
         console.log('Gathering data on trip', tripId);
         const tripUpdateEntity = await tripUpdateCollection.findOne({ id: tripId });
         const tripUpdate = tripUpdateEntity?.tripUpdate;
-        if (!tripUpdate?.vehicle || !tripUpdate?.trip.tripId) return;
+        if (!tripUpdate?.vehicle?.id || !tripUpdate?.trip.tripId) return;
         console.log('Gathered tripUpdate')
 
         const [ vehicleEntity, trip ] = await Promise.all([
@@ -103,7 +104,7 @@ const runQuery = async (tripId: string): Promise<GTFSData | undefined> => {
 
         const [ route, stopTimes, shapes, calendar ] = await Promise.all([
             routeCollection.findOne({ route_id: trip.route_id }),
-            stopTimeCollection.find({ trip_id: trip.trip_id }).toArray(),
+            stopTimeCollection.find({ trip_id: trip.trip_id }).sort({ stop_sequence: 1 }).toArray(),
             shapeCollection.find({ shape_id: trip.shape_id }).sort({ shape_pt_sequence: 1 }).toArray(),
             calendarCollection.findOne({ service_id: trip.service_id })
         ]);
@@ -154,11 +155,40 @@ const runQuery = async (tripId: string): Promise<GTFSData | undefined> => {
     }
 }
 
-// const stopDetails = ['stop_name', ]
+const getRouteType = (routeType: VehicleType) => {
+    switch (routeType) {
+        case VehicleType.BUS:
+            return 'Bus';
+        default:
+            return routeType;
+    }
+}
 
-const generateMap = async (data?: GTFSData) => {
+const getOccupancyStatus = (occupancyStatus: transit_realtime.VehiclePosition.OccupancyStatus) => {
+    const OccupancyStatus = transit_realtime.VehiclePosition.OccupancyStatus;
+    switch (occupancyStatus) {
+        case OccupancyStatus.EMPTY:
+            return 'Vehicle has few or no passengers onboard.';
+        case OccupancyStatus.MANY_SEATS_AVAILABLE:
+            return 'Vehicle has large number of seats available.'
+        case OccupancyStatus.FEW_SEATS_AVAILABLE:
+            return 'Vehicle has a small number of seats available.';
+        case OccupancyStatus.STANDING_ROOM_ONLY:
+            return 'Vehicle can currently accommodate only standing passengers.';
+        case OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY:
+            return 'Vehicle has limited space accomodating only standing passengers.';
+        case OccupancyStatus.FULL:
+            return 'Vehicle has little to no room for passengers.'
+        case OccupancyStatus.NOT_ACCEPTING_PASSENGERS:
+            return 'Vehicle not accepting passengers.';
+        default:
+            return occupancyStatus;
+    }
+}
+
+const generateTripMap = async (data?: GTFSData) => {
     if (!data) return;
-    const { stops, shapes, vehicle, route, direction, stopTimes, tripUpdate } = data;
+    const { stops, shapes, vehicle, route, direction, stopTimes, tripUpdate, agency, calendar, fareAttributes, trip } = data;
 
     const orderedStops = direction.direction_id ? stops : stops.reverse();
     const remainingStops = orderedStops.slice(vehicle.currentStopSequence - 1);
@@ -185,6 +215,26 @@ const generateMap = async (data?: GTFSData) => {
         return stopInfo;
     });
 
+    const currentStop = stopTimes[vehicle.currentStopSequence - 1];
+
+    console.table({
+        agencyName: agency.agency_name,
+        agencyUrl: agency.agency_url,
+        routeShortName: route.route_short_name,
+        routeLongName: route.route_long_name,
+        routeDirection: direction.direction,
+        routeUrl: route.route_url,
+        routeType: getRouteType(route.route_type),
+        headsign: currentStop.stop_headsign || trip.trip_headsign,
+        farePrice: fareAttributes[0].price,
+        tripProgress: vehicle.currentStopSequence / stops.length * 100,
+        vehicleLatitude: vehicle.position?.latitude,
+        vehicleLongitude: vehicle.position?.longitude,
+        vehicleBearing: vehicle.position?.bearing,
+        vehicleSpeed: vehicle.position?.speed,
+        vehicleOccupancy: getOccupancyStatus(vehicle.occupancyStatus),
+    });
+    console.table(mapValues(omit(calendar, [ '_id', 'service_id', 'start_date', 'end_date' ]), v => !!v));
     console.table(remainingStopInfo);
 
     const pic = await fetch(`https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${encodeURIComponent(stopStrings.concat(lineString, vehicleString).join(','))}/auto/1280x1280@2x?access_token=${MAP_BOX_PUB_KEY}`)
@@ -192,7 +242,25 @@ const generateMap = async (data?: GTFSData) => {
     await writeFile('map.png', Buffer.from(pic));
 }
 
+// const getVehiclesOnRoute = async (routeId: string) => {
+//     try {
+//         const route = await routeCollection.findOne({ route_id: routeId });
+//         const vehicles = await vehicleCollection.find({ 'vehicle.trip.routeId': routeId }).toArray();
+//         return vehicles.map(vehicle => vehicle.vehicle);
+//     } finally {
+//         await client.close();
+//     }
+// }
+
+// const generateVehicleMap = async (vehicles: transit_realtime.VehiclePosition[]) => {
+//     const vehicleStrings = vehicles.map(vehicle => `pin-l-bus+00B5E2(${vehicle.position?.longitude},${vehicle.position?.latitude})`);
+//     const pic = await fetch(`https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${encodeURIComponent(vehicleStrings.join(','))}/auto/1280x1280@2x?access_token=${MAP_BOX_PUB_KEY}`)
+//         .then(res => res.arrayBuffer());
+//     await writeFile('map.png', Buffer.from(pic));
+// }
+
 const success = () => console.log('Success.');
 // runSchedule().then(success).catch(console.dir);
 // runRealtime().then(success).catch(console.dir);
-runQuery('3401263').then(generateMap).then(success).catch(console.dir);
+getTripInfo('3403512').then(generateTripMap).then(success).catch(console.dir);
+// getVehiclesOnRoute('23').then(generateVehicleMap).then(success).catch(console.dir);
