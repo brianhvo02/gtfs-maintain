@@ -1,3 +1,4 @@
+import { Feature, MultiLineString } from '@turf/helpers';
 import 'dotenv/config';
 import { transit_realtime } from 'gtfs-realtime-bindings';
 import { Trip, Route, Agency, StopTime, Stop, Shapes, Calendar, CalendarDates } from 'gtfs-types';
@@ -32,6 +33,7 @@ export const calendarCollection = database.collection<Calendar>('calendar');
 export const calendarDateCollection = database.collection<CalendarDates>('calendar_dates');
 export const fareRuleCollection = database.collection('fare_rules');
 export const fareAttributeCollection = database.collection('fare_attributes');
+export const routeGeoJSONCollection = database.collection<Feature<MultiLineString, Route>>('routes_geojson');
 
 export interface GTFSData {
     agency: WithId<Agency>;

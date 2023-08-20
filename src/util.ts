@@ -1,3 +1,4 @@
+import { Position } from "@turf/helpers";
 import { createHash } from "crypto";
 import { zipObject } from "lodash";
 import { Long } from "protobufjs";
@@ -22,12 +23,17 @@ const numbers = [
     'price', 'payment_method', 'transfers', 'transfer_duration'
 ]
 
-export const readCsv = (str: String) => {
-    const [header, ...data] = str.split('\r\n').map(line => line.split(','));
-    return data.map(line => zipObject(header, line.map((datum, i) => datum.length && numbers.includes(header[i]) ? +datum : datum)));
+export const readCsv = (csv: String) => {
+    const [header, ...data] = csv.split('\r\n').map(line => {
+        const strArr = [...new Set([...line.matchAll(/".+"/g)].map(match => match[0]))];
+        const newLine = strArr.reduce((newLine, str, i) => newLine.replaceAll(str, `$${i}`), line).split(',');
+        strArr.forEach((str, i) => { newLine[newLine.indexOf(`$${i}`)] = str.slice(1, str.length - 1) });
+        return newLine;
+    });
+    return data.map(line => zipObject(header, line.map((datum, i) => numbers.includes(header[i]) && !isNaN(+datum) ? +datum : datum)));
 }
 
-const notEmpty = <T>(val: T | null | undefined): val is T => val !== null && val !== undefined;
+export const notEmpty = <T>(val: T | null | undefined): val is T => val !== null && val !== undefined;
 export const filterNull = <T>(data: (T | null | undefined)[])  => data.filter(notEmpty);
 
 export const timestampToDate = (num: number | Long | null | undefined) => {
@@ -42,3 +48,5 @@ export const timestampToDate = (num: number | Long | null | undefined) => {
         second: '2-digit'
     });
 };
+
+export const checkPosition = (pos: Position): pos is [number, number] => pos.length === 2;
