@@ -1,3 +1,4 @@
 gtfs
 .env
 node_modules
+dist

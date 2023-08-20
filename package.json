@@ -4,18 +4,29 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "start": "npm run build && node dist/index",
+    "dev": "nodemon -w src -e ts -x 'npm start'"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@mapbox/polyline": "^1.2.0",
+    "@turf/helpers": "^6.5.0",
     "adm-zip": "^0.5.10",
     "gtfs-realtime-bindings": "^1.1.1",
     "lodash": "^4.17.21",
     "mongodb": "5.7"
   },
   "devDependencies": {
-    "dotenv": "^16.3.1"
+    "@types/adm-zip": "^0.5.0",
+    "@types/lodash": "^4.14.197",
+    "@types/mapbox__polyline": "^1.0.2",
+    "@types/node": "^20.5.1",
+    "dotenv": "^16.3.1",
+    "gtfs-types": "^2.2.0",
+    "nodemon": "^3.0.1",
+    "typescript": "^5.1.6"
   }
 }
