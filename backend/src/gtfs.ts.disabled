@@ -4,11 +4,10 @@ import { existsSync } from 'fs';
 import AdmZip from 'adm-zip';
 import { join } from 'path';
 import { GTFSData, MAP_BOX_PUB_KEY, OPERATOR_ID, SFB_511_API_KEY, agencyCollection, calendarCollection, calendarDateCollection, client, database, directionCollection, fareAttributeCollection, fareRuleCollection, routeAttributeCollection, routeCollection, routeGeoJSONCollection, shapeCollection, stopCollection, stopTimeCollection, tripCollection, tripUpdateCollection, vehicleCollection } from './config';
-import { checkPosition, checkRouteFeature, checkStopFeature, filterNull, hash, notEmpty, readCsv, timestampToDate } from './util';
+import { checkPosition, checkRouteFeature, checkStopFeature, filterNull, hash, notEmpty, readCsv, timestampToDate } from './utils';
 import polyline from '@mapbox/polyline';
-import { mapValues, omit, pick } from 'lodash';
+import { mapValues, omit } from 'lodash';
 import { Occupancy, Route, Stop, Trip, VehicleType } from 'gtfs-types';
-import { WithoutId } from 'mongodb';
 import { Feature, MultiLineString, Point, featureCollection, multiLineString, point } from '@turf/helpers';
 
 const runSchedule = async () => {
@@ -328,19 +327,19 @@ const generateRoutesMap = async (routeId: string, options?: Partial<{
     return generateMap(overlays);
 }
 
-const success = () => console.log('Success.');
-const run = async () => {
-    try {
-        // await runSchedule().then(success).catch(console.dir);
-        // await runRealtime().then(success).catch(console.dir);
-        // await runRoutesGeoJSON().then(success).catch(console.dir);
-        // await generateRoutesMap('44', { withVehicles: true }).then(success).catch(console.dir);
-        // getTripInfo('3403512').then(generateTripMap).then(success).catch(console.dir);
-        // getVehiclesOnRoute('23').then(generateVehicleMap).then(success).catch(console.dir);
-    } finally {
-        await client.close();
-    }
-}
+// const success = () => console.log('Success.');
+// const run = async () => {
+//     try {
+//         // await runSchedule().then(success).catch(console.dir);
+//         // await runRealtime().then(success).catch(console.dir);
+//         // await runRoutesGeoJSON().then(success).catch(console.dir);
+//         // await generateRoutesMap('44', { withVehicles: true }).then(success).catch(console.dir);
+//         // getTripInfo('3403512').then(generateTripMap).then(success).catch(console.dir);
+//         // getVehiclesOnRoute('23').then(generateVehicleMap).then(success).catch(console.dir);
+//     } finally {
+//         await client.close();
+//     }
+// }
 
-run();
+// run();
 

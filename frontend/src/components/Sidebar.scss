@@ -1,0 +1,59 @@
+@import '../variables.scss';
+
+.sidebar {
+    position: absolute;
+    z-index: 5;
+    top: 0;
+    left: 0;
+
+    display: flex;
+    align-items: flex-start;
+
+    transition: 0.3s;
+
+    svg {
+        color: $accent-color;
+        width: 1.5rem;
+        height: auto;
+        margin: 1rem 1.5rem;
+    }
+
+    .sidebar-icon {
+        cursor: pointer;
+    }
+
+    ul {
+        width: 20rem;
+        height: 100vh;
+        background-color: $main-color;
+        background-color: rgba($main-color, 0.5);
+        color: $accent-color;
+        text-align: center;
+
+        margin: 0;
+        padding: 0;
+
+        div {
+            display: flex;
+            padding: 1rem;
+            user-select: none;
+
+            svg {
+                width: 3rem;
+            }
+        }
+
+        li {
+            box-sizing: border-box;
+            list-style: none;
+            padding: 1rem;
+            width: 100%;
+            font-size: 1.5rem;
+        }
+
+        li:hover {
+            background-color: $base-color;
+            cursor: pointer;
+        }
+    }
+}

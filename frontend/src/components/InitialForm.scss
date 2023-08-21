@@ -1,0 +1,25 @@
+@import '../variables.scss';
+
+.connect-form {
+    position: absolute;
+    z-index: 5;
+
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    display: flex;
+    flex-direction: column;
+
+    padding: 1rem 2rem 2rem;
+    background-color: $base-color;
+    color: $accent-color;
+
+    button {
+        margin-top: 0.5rem;
+    }
+
+    input {
+        min-width: 35rem;
+    }
+}

@@ -1,8 +1,9 @@
-import { Feature, MultiLineString, Point, Position } from "@turf/helpers";
-import { createHash } from "crypto";
-import { Route, Stop } from "gtfs-types";
-import { zipObject } from "lodash";
-import { Long } from "protobufjs";
+import { Feature, MultiLineString, Point, Position } from '@turf/helpers';
+import { createHash } from 'crypto';
+import { Route, Stop } from 'gtfs-types';
+import { zipObject } from 'lodash';
+import { Long } from 'protobufjs';
+import { WebSocket } from 'ws';
 
 export const hash = (buf: Buffer) => {
     const hasher = createHash('sha1');
@@ -54,3 +55,5 @@ export const checkPosition = (pos: Position): pos is [number, number] => pos.len
 
 export const checkRouteFeature = (feature: Feature<MultiLineString | Point, Route | Stop>): feature is Feature<MultiLineString, Route> => feature.geometry.type === 'MultiLineString';
 export const checkStopFeature = (feature: Feature<MultiLineString | Point, Route | Stop>): feature is Feature<Point, Stop> => feature.geometry.type === 'Point';
+
+export const log = (message: string, ws?: WebSocket) => ws ? ws.send(message) : console.log(message);
