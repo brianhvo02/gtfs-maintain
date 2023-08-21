@@ -34,7 +34,7 @@ const App = () => {
 	}, [cookies.mdbUri]);
 
 	useEffect(() => {
-		if (currentFeed && currentFeed.id !== 'ADD_FEED') {
+		if (currentFeed && !['ADD_FEED', 'UPDATE_FEED'].includes(currentFeed.id)) {
 			return customFetch(
 				`/feeds/${currentFeed.id}/routes`, 
 				{
@@ -58,9 +58,9 @@ const App = () => {
 				(
 					(!currentFeed && feeds && !feeds.length)
 						||
-					(currentFeed && currentFeed.id === 'ADD_FEED')
+					(currentFeed && ['ADD_FEED', 'UPDATE_FEED'].includes(currentFeed.id))
 				) &&
-				<NewFeedForm setCurrentFeed={setCurrentFeed} setFeeds={setFeeds} />
+				<NewFeedForm currentFeed={currentFeed} setCurrentFeed={setCurrentFeed} setFeeds={setFeeds} />
 			}
 			{
 				feeds && !!feeds.length && !currentFeed &&

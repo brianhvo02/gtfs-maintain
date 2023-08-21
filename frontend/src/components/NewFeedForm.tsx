@@ -1,16 +1,19 @@
 import { Dispatch, FormEvent, SetStateAction, useEffect, useMemo, useRef, useState } from 'react';
 import './NewFeedForm.scss';
-import useWebSocket from 'react-use-websocket';
+import useWebSocket, { ReadyState } from 'react-use-websocket';
 import { v4 } from 'uuid';
 import { Feed } from '../../../shared';
 
-const NewFeedForm = ({ setCurrentFeed, setFeeds }: { 
-    setCurrentFeed: Dispatch<SetStateAction<Feed | undefined>>
-    setFeeds: Dispatch<SetStateAction<Feed[] | undefined>>
-}) => {
-    const id = useMemo(() => v4(), []);
-    const [name, setName] = useState('');
-    const [url, setUrl] = useState('');
+interface NewFeedFormProps { 
+    currentFeed?: Feed;
+    setCurrentFeed: Dispatch<SetStateAction<Feed | undefined>>;
+    setFeeds: Dispatch<SetStateAction<Feed[] | undefined>>;
+}
+
+const NewFeedForm = ({ currentFeed, setCurrentFeed, setFeeds }: NewFeedFormProps) => {
+    const id = useMemo(() => currentFeed?.name ?? v4(), []);
+    const [name, setName] = useState(currentFeed?.name ?? '');
+    const [url, setUrl] = useState(currentFeed?.url ?? '');
     const [clicked, setClicked] = useState(false);
     const [messages, setMessages] = useState<string[]>([]);
     const messageContainerRef = useRef<HTMLUListElement>(null);
@@ -30,6 +33,18 @@ const NewFeedForm = ({ setCurrentFeed, setFeeds }: {
         }
     }, [messages]);
 
+    useEffect(() => {
+        if (currentFeed) {
+            setClicked(true);
+            fetch(`/feeds/${currentFeed.name}`, {
+                method: 'PATCH'
+            }).then(async res => {
+                const feed = await res.json();
+                setCurrentFeed(feed);
+            });
+        }
+    }, [currentFeed, setCurrentFeed]);
+
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setClicked(true);
@@ -41,7 +56,6 @@ const NewFeedForm = ({ setCurrentFeed, setFeeds }: {
             body: JSON.stringify({ id, name, url })
         }).then(async res => {
             const feed = await res.json();
-            console.log(feed)
             setFeeds(prev => [...(prev ?? []), feed]);
             setCurrentFeed(feed);
         });

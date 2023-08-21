@@ -26,8 +26,11 @@ const numbers = [
 ]
 
 export const readCsv = (csv: String) => {
-    const [header, ...data] = csv.split('\r\n').map(line => {
-        const strArr = [...new Set([...line.matchAll(/".+"/g)].map(match => match[0]))];
+    const csvTransform = csv.replaceAll('\r\n', '\n').split('\n');
+    if (!csvTransform[csvTransform.length - 1].length)
+        csvTransform.pop();
+    const [header, ...data] = csvTransform.map(line => {
+        const strArr = [...new Set([...line.matchAll(/"[^"]+"/g)].map(match => match[0]))];
         const newLine = strArr.reduce((newLine, str, i) => newLine.replaceAll(str, `$${i}`), line).split(',');
         strArr.forEach((str, i) => { newLine[newLine.indexOf(`$${i}`)] = str.slice(1, str.length - 1) });
         return newLine;

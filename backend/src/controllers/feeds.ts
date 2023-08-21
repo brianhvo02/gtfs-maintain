@@ -156,7 +156,7 @@ export const create = async (req: Request, res: Response, next: NextFunction) =>
 export const update = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { feedId } = req.params;
-        const wsClient = [...wsServer.clients].find(client => client.protocol === req.body.id);
+        const wsClient = [...wsServer.clients].find(client => client.protocol === feedId);
         // if (!wsClient) throw new UnprocessableContent('Invalid WebSocket id');
 
         const client = req.dbClient;

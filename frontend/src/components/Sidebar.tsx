@@ -35,7 +35,12 @@ const Sidebar = ({ currentFeed, setCurrentFeed, setFeeds }: {
                 {
                     currentFeed &&
                     <li onClick={() => {
-                        
+                        setToggled(prev => !prev);
+                        setCurrentFeed(prev => ({
+                            id: 'UPDATE_FEED',
+                            name: prev?.id ?? '',
+                            url: prev?.url ?? ''
+                        }));
                     }}>Update Feed</li>
                 }
             </ul>
