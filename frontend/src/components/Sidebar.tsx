@@ -11,44 +11,56 @@ const Sidebar = ({ currentFeed, setCurrentFeed, setFeeds }: {
     setFeeds: Dispatch<SetStateAction<Feed[] | undefined>>
 }) => {
     const [toggled, setToggled] = useState(false);
-    const [,, removeCookie] = useCookies();
+    const [cookies,, removeCookie] = useCookies();
 
     return (
-        <div className='sidebar' style={{
-            transform: toggled ? '' : 'translateX(calc(-100% + 4.5rem))'
-        }}>
-            <ul>
+        <div className='sidebar'>
+            <ul style={{
+                transform: toggled ? '' : 'translateX(-100%)'
+            }}>
                 <div>
                     <h1>GTFS Visualizer</h1>
                     <FontAwesomeIcon icon={faBus} />
                 </div>
-                <li onClick={() => {
-                    setToggled(prev => !prev);
-                    setCurrentFeed(undefined);
-                    setFeeds(undefined);
-                    removeCookie('mdbUri');
-                }}>Switch Database</li>
-                <li onClick={() => {
-                    setToggled(prev => !prev);
-                    setCurrentFeed(undefined);
-                }}>Switch Feed</li>
                 {
-                    currentFeed &&
-                    <li onClick={() => {
-                        setToggled(prev => !prev);
-                        setCurrentFeed(prev => ({
-                            id: 'UPDATE_FEED',
-                            name: prev?.id ?? '',
-                            url: prev?.url ?? ''
-                        }));
-                    }}>Update Feed</li>
+                    cookies.mdbUri &&
+                    <>
+                        <li onClick={() => {
+                            setToggled(prev => !prev);
+                            setCurrentFeed(undefined);
+                            setFeeds(undefined);
+                            removeCookie('mdbUri');
+                        }}>Switch Database</li>
+                        <li onClick={() => {
+                            setToggled(prev => !prev);
+                            setCurrentFeed(prev => ({
+                                id: 'SWITCH_FEED',
+                                name: prev?.name ?? '',
+                                url: prev?.id ?? ''
+                            }));
+                        }}>Switch Feed</li>
+                        {
+                            currentFeed && !['ADD_FEED', 'UPDATE_FEED'].includes(currentFeed.id) &&
+                            <li onClick={() => {
+                                setToggled(prev => !prev);
+                                setCurrentFeed(prev => ({
+                                    id: 'UPDATE_FEED',
+                                    name: prev?.id ?? '',
+                                    url: prev?.url ?? ''
+                                }));
+                            }}>Update Feed</li>
+                        }
+                    </>
                 }
             </ul>
-            <FontAwesomeIcon 
-                className='sidebar-icon'
-                icon={faBars} 
-                onClick={() => setToggled(prev => !prev)} 
-            />
+            <div className='sidebar-header'>
+                <FontAwesomeIcon 
+                    className='sidebar-icon'
+                    icon={faBars} 
+                    onClick={() => setToggled(prev => !prev)} 
+                />
+                <h2>{currentFeed?.name}</h2>
+            </div>
         </div>
     )
 }

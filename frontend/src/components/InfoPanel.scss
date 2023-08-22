@@ -1,0 +1,90 @@
+@import '../variables.scss';
+
+.info-panel {
+    position: absolute;
+    z-index: 3;
+    
+    top: 3rem;
+    left: 0;
+    
+    color: $accent-color;
+    background-color: rgba($base-color, 0.5);
+    
+    margin: 1rem;
+    // padding: 1.5rem;
+    
+    box-sizing: border-box;
+    width: 24rem;
+    max-height: 90vh;
+
+    border-radius: 1rem;
+}
+
+.info-panel-selected {
+    padding: 1rem;
+    
+    svg {
+        width: 1rem;
+        height: auto;
+    }
+}
+
+.info-panel-routes {
+    header {
+        margin: 1rem 0;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        
+        span {
+            margin: 0 0.5rem;
+            line-height: 1rem;
+            user-select: none;
+        }
+
+        svg {
+            width: 1rem;
+            height: auto;
+            cursor: pointer;
+        }
+    }
+
+    ol {
+        padding: 0;
+
+        li {
+            display: flex;
+            justify-content: space-between;
+
+            list-style: none;
+            gap: 1.5rem;
+
+            padding: 1rem 1.5rem;
+
+            section {
+                display: flex;
+                flex-direction: column;
+                // margin-bottom: 0.5rem; 
+
+                h2, h3, p {
+                    margin: 0;
+                    line-height: 1.5rem;
+                }
+
+                h2, p:first-child {
+                    margin-bottom: 0.5rem;
+                }
+
+                p {
+                    text-align: right;
+                }
+            }
+        }
+
+        li:hover {
+            background-color: rgba($main-color, 0.5);
+            cursor: pointer;
+        }
+    }
+}

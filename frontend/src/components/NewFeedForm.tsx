@@ -1,6 +1,6 @@
 import { Dispatch, FormEvent, SetStateAction, useEffect, useMemo, useRef, useState } from 'react';
 import './NewFeedForm.scss';
-import useWebSocket, { ReadyState } from 'react-use-websocket';
+import useWebSocket from 'react-use-websocket';
 import { v4 } from 'uuid';
 import { Feed } from '../../../shared';
 
@@ -11,9 +11,9 @@ interface NewFeedFormProps {
 }
 
 const NewFeedForm = ({ currentFeed, setCurrentFeed, setFeeds }: NewFeedFormProps) => {
-    const id = useMemo(() => currentFeed?.name ?? v4(), []);
-    const [name, setName] = useState(currentFeed?.name ?? '');
-    const [url, setUrl] = useState(currentFeed?.url ?? '');
+    const id = useMemo(() => currentFeed?.name.length ? currentFeed?.name : v4(), [currentFeed]);
+    const [name, setName] = useState(currentFeed?.name);
+    const [url, setUrl] = useState(currentFeed?.url);
     const [clicked, setClicked] = useState(false);
     const [messages, setMessages] = useState<string[]>([]);
     const messageContainerRef = useRef<HTMLUListElement>(null);
@@ -34,7 +34,7 @@ const NewFeedForm = ({ currentFeed, setCurrentFeed, setFeeds }: NewFeedFormProps
     }, [messages]);
 
     useEffect(() => {
-        if (currentFeed) {
+        if (currentFeed?.name.length) {
             setClicked(true);
             fetch(`/feeds/${currentFeed.name}`, {
                 method: 'PATCH'

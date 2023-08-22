@@ -11,14 +11,17 @@ import wsServer from '../websocket';
 import { WebSocket } from 'ws';
 import { Feature, Point, point, featureCollection, MultiLineString, multiLineString } from '@turf/helpers';
 import { Route, Trip, Stop } from 'gtfs-types';
+import { chunk } from 'lodash';
 
 const updateDatabase = async (url: string, collections: Collections, ws?: WebSocket) => {
+    log(`Received request to update database`, ws);
     const { checksums, database } = collections;
     const allChecksums = await checksums.findOne();
 
     const buf = await fetch(url)
         .then(res => res.arrayBuffer())
         .then(data => Buffer.from(data));
+    log(`Downloaded GTFS archive`, ws);
 
     const downloadChecksum = hash(buf);
     if (allChecksums && allChecksums.archive) {
@@ -52,7 +55,7 @@ const updateDatabase = async (url: string, collections: Collections, ws?: WebSoc
         await collection.deleteMany({});
 
         log(`Processing ${dataObjects.length} in ${filename}`, ws);
-        if (dataObjects.length) await collection.insertMany(dataObjects);
+        await collection.insertMany(dataObjects);
         log(`Completed processing ${filename}`, ws);
     });
 
@@ -67,7 +70,7 @@ const updateGeoJSON = async (collections: Collections, ws?: WebSocket) => {
     log('Calculating GeoJSON shapes', ws);
     await collections.routeGeoJSON.deleteMany({});
     await Promise.all(
-        routes.map(async route => {
+        routes.map(async function (route) {
             log(`Working on ${route.route_id}`, ws);
             const trips = await collections.trip
                 .find({ route_id: route.route_id })

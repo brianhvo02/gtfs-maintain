@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { Feature, FeatureCollection, MultiLineString, Point } from 'geojson';
+import { Route, Stop } from 'gtfs-types';
+import { useEffect, useState } from 'react';
 
 interface GeolocationResponse {
     status: string;
@@ -52,3 +54,36 @@ export const hexToRgb = (hex: string): [number, number, number] | null => {
         parseInt(result[3], 16)
     ] : null;
 }
+
+export type MapDatum = FeatureCollection<MultiLineString | Point, Route | Stop>;
+export type MapFeature = Feature<MultiLineString | Point, Route | Stop>;
+
+export const flattenFeatureCollections = (collections: MapDatum[]): MapFeature[] => 
+	collections.map((c: MapDatum) => c.features).flat();
+
+// export const getOccupancyStatus = (occupancyStatus: transit_realtime.VehiclePosition.OccupancyStatus) => {
+//     const OccupancyStatus = transit_realtime.VehiclePosition.OccupancyStatus;
+//     switch (occupancyStatus) {
+//         case OccupancyStatus.EMPTY:
+//             return 'Vehicle has few or no passengers onboard.';
+//         case OccupancyStatus.MANY_SEATS_AVAILABLE:
+//             return 'Vehicle has large number of seats available.'
+//         case OccupancyStatus.FEW_SEATS_AVAILABLE:
+//             return 'Vehicle has a small number of seats available.';
+//         case OccupancyStatus.STANDING_ROOM_ONLY:
+//             return 'Vehicle can currently accommodate only standing passengers.';
+//         case OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY:
+//             return 'Vehicle has limited space accomodating only standing passengers.';
+//         case OccupancyStatus.FULL:
+//             return 'Vehicle has little to no room for passengers.'
+//         case OccupancyStatus.NOT_ACCEPTING_PASSENGERS:
+//             return 'Vehicle not accepting passengers.';
+//         default:
+//             return occupancyStatus;
+//     }
+// }
+
+export const checkRouteFeature = (feature: Feature<MultiLineString | Point, Route | Stop>): feature is Feature<MultiLineString, Route> => feature.geometry.type === 'MultiLineString';
+export const checkStopFeature = (feature: Feature<MultiLineString | Point, Route | Stop>): feature is Feature<Point, Stop> => feature.geometry.type === 'Point';
+export const checkRoute = (data: Route | Stop): data is Route => !!(data as Route).route_id;
+export const checkStop = (data: Route | Stop): data is Stop => !!(data as Stop).stop_id;

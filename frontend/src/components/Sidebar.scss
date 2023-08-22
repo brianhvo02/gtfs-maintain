@@ -1,18 +1,23 @@
 @import '../variables.scss';
 
 .sidebar {
-    position: absolute;
-    z-index: 5;
-    top: 0;
-    left: 0;
+    color: $accent-color;
 
-    display: flex;
-    align-items: flex-start;
+    .sidebar-header {
+        position: absolute;
+        z-index: 5;
+        top: 0;
+        left: 0;
+        display: flex;
+        width: 25rem;
+        align-items: center;
 
-    transition: 0.3s;
+        h2 {
+            margin: 0;
+        }
+    }
 
     svg {
-        color: $accent-color;
         width: 1.5rem;
         height: auto;
         margin: 1rem 1.5rem;
@@ -23,18 +28,24 @@
     }
 
     ul {
-        width: 20rem;
+        position: absolute;
+        z-index: 5;
+        top: 0;
+        left: 0;
+
+        transition: 0.3s;
+
+        width: 25rem;
         height: 100vh;
         background-color: $main-color;
-        background-color: rgba($main-color, 0.5);
-        color: $accent-color;
         text-align: center;
 
         margin: 0;
-        padding: 0;
+        padding: 3rem 0 0;
 
         div {
             display: flex;
+            justify-content: center;
             padding: 1rem;
             user-select: none;
 
